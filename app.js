@@ -56,11 +56,10 @@ function stateParaLinha(s){
 }
 
 async function loadState(){
-  try{
-    const { data, error } = await sb.from('rpg_state').select('*').eq('id', 1).maybeSingle();
-    if(error) throw error;
-    if(data) return linhaParaState(data);
-  }catch(e){ console.warn('Falha ao carregar dados do Supabase', e); }
+  const { data, error } = await sb.from('rpg_state').select('*').eq('id', 1).maybeSingle();
+  if(error) throw error; // erro real de conexão/permissão: o bootstrap deve travar e avisar, NUNCA seguir com dados vazios
+  if(data) return linhaParaState(data);
+  // Só chega aqui se a consulta funcionou e realmente não existe nenhuma linha ainda (mesa nova de verdade)
   return estadoVazio();
 }
 
@@ -70,11 +69,20 @@ let state = estadoVazio(); // populado de fato pelo bootstrap, antes de qualquer
 // Realtime saiba diferenciar "minha própria escrita" de "escrita de outro jogador"
 const CLIENT_ID = 'client_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 
+// Trava de segurança: nenhum save é permitido até o estado real ter sido
+// carregado com sucesso do Supabase. Isso evita que qualquer bug ou
+// condição de corrida sobrescreva dados reais com uma mesa vazia.
+let _stateCarregadoComSucesso = false;
+
 // Evita salvar simultaneamente o mesmo estado várias vezes em sequência rápida
 let _saveStateTimer = null;
 let _savingState = false;
 
 function saveState(){
+  if(!_stateCarregadoComSucesso){
+    console.warn('saveState() ignorado: o estado ainda não foi carregado do Supabase com sucesso.');
+    return;
+  }
   // Debounce leve: agrupa saves disparados em sequência (ex: arrastar token)
   clearTimeout(_saveStateTimer);
   _saveStateTimer = setTimeout(_flushSaveState, 150);
