@@ -79,13 +79,14 @@ async function bootstrapApp() {
   mostrarTelaCarregando(true);
   try {
     state = await loadState();
+    _stateCarregadoComSucesso = true; // libera saveState() — só a partir de aqui é seguro salvar
     init(); // definida em app.js — popula mapa inicial, exemplo, etc se for primeira vez
     await checkAuth(); // definida em adm.js — decide entre tela de login ou entrar direto
     iniciarRealtimeSync();
     mostrarTelaCarregando(false);
   } catch (e) {
     console.error('Falha ao inicializar a mesa', e);
-    mostrarErroConexao('Não foi possível conectar à mesa de RPG. Verifique sua internet e tente novamente.');
+    mostrarErroConexao('Não foi possível carregar os dados da mesa. Por segurança, o app não vai continuar (isso evita sobrescrever seus dados com uma mesa vazia). Verifique sua internet e tente novamente em alguns segundos.');
   }
 }
 
